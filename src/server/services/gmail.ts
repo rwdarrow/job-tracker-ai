@@ -57,7 +57,7 @@ export const gmailService = {
 const getMessage = async (
   gmail: Gmail,
   messageId: string,
-): Promise<Message | null> => {
+): Promise<Message> => {
   try {
     const message = await gmail.users.messages.get({
       userId: authenticatedUser,
