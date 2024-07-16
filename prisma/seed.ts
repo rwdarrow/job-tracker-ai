@@ -7,7 +7,7 @@ async function main() {
     create: {
       id: 1,
       name: "NVIDIA",
-      url: "nvidia.com",
+      domain: "nvidia.com",
     },
   });
   const company2 = await db.company.upsert({
@@ -16,7 +16,7 @@ async function main() {
     create: {
       id: 2,
       name: "LG",
-      url: "lg.com",
+      domain: "lg.com",
     },
   });
   const user = await db.user.upsert({
@@ -33,12 +33,14 @@ async function main() {
             title: "Software Engineer",
             status: "APPLIED",
             lastStatus: "APPLIED",
+            statusConfidence: 1,
             companyId: company1.id,
           },
           {
             id: "role-uuid-2",
             title: "Software Developer",
             status: "IN_PROGRESS_RECRUITER_CONTACT",
+            statusConfidence: 1,
             contacts: {
               create: [
                 {

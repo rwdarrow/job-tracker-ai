@@ -12,17 +12,19 @@ datasource db {
 }
 
 model Role {
-    id               String    @id @default(cuid())
-    title            String
-    status           Status
-    lastStatus       Status?
-    contacts         Contact[] @relation("RoleContacts")
-    createdAt        DateTime  @default(now())
-    updatedAt        DateTime  @updatedAt
-    createdBy        User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
-    createdById      String
-    company          Company   @relation(fields: [companyId], references: [id])
-    companyId        Int
+    id                String    @id @default(cuid())
+    title             String
+    requisitionNumber String?
+    status            Status
+    lastStatus        Status?
+    statusConfidence  Float
+    contacts          Contact[] @relation("RoleContacts")
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
+    createdBy         User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+    createdById       String
+    company           Company   @relation(fields: [companyId], references: [id])
+    companyId         Int
 
     @@index([createdById, companyId])
 }
@@ -47,7 +49,7 @@ enum Status {
 model Company {
     id       Int     @id @default(autoincrement())
     name     String  @unique
-    url      String? 
+    domain   String? 
     roles    Role[]
     contacts Contact[]
 }
@@ -71,12 +73,12 @@ model Account {
     type                     String
     provider                 String
     providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
+    refresh_token            String? 
+    access_token             String? 
     expires_at               Int?
     token_type               String?
     scope                    String?
-    id_token                 String? // @db.Text
+    id_token                 String? 
     session_state            String?
     user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
     refresh_token_expires_in Int?
