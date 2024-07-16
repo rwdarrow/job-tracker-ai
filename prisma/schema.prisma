@@ -14,7 +14,7 @@ datasource db {
 model Role {
     id                String    @id @default(cuid())
     title             String
-    requisitionNumber String?
+    requisitionNumber String?   @unique
     status            Status
     lastStatus        Status?
     statusConfidence  Float
@@ -26,7 +26,7 @@ model Role {
     company           Company   @relation(fields: [companyId], references: [id])
     companyId         Int
 
-    @@index([createdById, companyId])
+    @@index([createdById, companyId, title, requisitionNumber])
 }
 
 enum Status {
