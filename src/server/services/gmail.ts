@@ -1,28 +1,21 @@
 import { type gmail_v1, google } from "googleapis";
+import { type Message } from "../models/message";
 import { GmailError } from "~/errors";
 
 type Gmail = gmail_v1.Gmail;
 type RawMessage = gmail_v1.Schema$Message;
 
-export interface Message {
-  id: string | null | undefined;
-  date: string | null | undefined;
-  subject: string | null | undefined;
-  sender: string | null | undefined;
-  body: string | null | undefined;
-}
-
 const authenticatedUser = "me"; // "me" indicates authenticated user in Gmail API
 
 export const gmailService = {
   fetchMessages: async (
-    accessToken: string,
+    refreshToken: string,
     startDate?: Date,
     query?: string,
   ): Promise<Message[]> => {
     try {
       const auth = new google.auth.OAuth2();
-      auth.setCredentials({ access_token: accessToken });
+      auth.setCredentials({ refresh_token: refreshToken });
 
       const gmail = google.gmail({ version: "v1", auth });
 
