@@ -24,13 +24,12 @@ export const roleRouter = createTRPCRouter({
         status: z.nativeEnum(Status),
         statusConfidence: z.number(),
         contacts: z
-          .array(
-            z.object({
-              email: z.string(),
-              name: z.string(),
-              title: z.string().optional(),
-            }),
-          )
+          .object({
+            email: z.string(),
+            name: z.string(),
+            title: z.string().optional(),
+          })
+          .array()
           .optional(),
         createdAt: z.date(),
         company: z.object({
@@ -109,14 +108,36 @@ export const roleRouter = createTRPCRouter({
           });
     }),
 
-  getRoles: protectedProcedure.query(({ ctx }) => {
+  getAll: protectedProcedure.query(({ ctx }) => {
     return ctx.db.role.findMany({
       orderBy: { createdAt: "desc" },
-      where: { createdBy: { id: ctx.session.user.id } },
+      where: { createdById: ctx.session.user.id },
       include: {
         company: true,
         contacts: true,
       },
+    });
+  }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.role.delete({
+        where: { id: input.id },
+      });
+    }),
+
+  deleteMany: protectedProcedure
+    .input(z.object({ ids: z.string().array() }))
+    .mutation(async ({ ctx, input }) => {
+      return await ctx.db.role.deleteMany({
+        where: { id: { in: input.ids } },
+      });
+    }),
+
+  deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
+    return await ctx.db.role.deleteMany({
+      where: { createdById: ctx.session.user.id },
     });
   }),
 });

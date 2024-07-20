@@ -65,7 +65,7 @@ async function CrudShowcase() {
   const session = await getServerAuthSession();
   if (!session?.user) return null;
 
-  const latestRoles = await api.role.getRoles();
+  const latestRoles = await api.role.getAll();
 
   return (
     <div className="w-full max-w-xs">
