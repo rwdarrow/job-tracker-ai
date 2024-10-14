@@ -44,6 +44,7 @@ enum Status {
     REJECTED
     OFFER_RECEIVED
     OFFER_DECLINED
+    NOT_APPLICABLE
 }
 
 model Company {
@@ -82,8 +83,10 @@ model Account {
     session_state            String?
     user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
     refresh_token_expires_in Int?
+    hasInboxCategories       Boolean?
 
     @@unique([provider, providerAccountId])
+    @@index([userId, provider])
 }
 
 model Session {

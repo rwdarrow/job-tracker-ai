@@ -18,12 +18,12 @@ type RawMessage = gmail_v1.Schema$Message;
 type ListMessagesParams = gmail_v1.Params$Resource$Users$Messages$List;
 
 export default class GmailService implements EmailService<FetchMessagesParams> {
-  private readonly _userId;
+  private readonly _email;
   private readonly _auth;
   private readonly _gmail;
 
-  constructor(userId: string, refreshToken: string) {
-    this._userId = userId;
+  constructor(email: string, refreshToken: string) {
+    this._email = email;
     this._auth = new google.auth.OAuth2(
       env.GOOGLE_CLIENT_ID,
       env.GOOGLE_CLIENT_SECRET,
@@ -32,22 +32,24 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
     this._gmail = google.gmail({ version: "v1", auth: this._auth });
   }
 
-  public async fetchMessages(
+  public fetchMessages = async (
     params: FetchMessagesParams,
-  ): Promise<Result<Message[] | undefined>> {
+  ): Promise<Result<Message[] | undefined, Error>> => {
     try {
       const { afterDate } = params;
 
       const listMessages = [];
       let nextPageToken: string | null | undefined;
 
+      // performance optimization: this setting is not exposed by the API but can be checked
+      // manually. Can potentially greatly reduce the number of API calls if it is set
+      const userHasInboxCategories = await this._getUserHasInboxCategories();
+      const q = `after:${format(afterDate, GMAIL_API_DATE_FORMAT)} ${userHasInboxCategories && "category: primary"}`;
       do {
         const requestOptions: ListMessagesParams = {
-          userId: this._userId,
+          userId: this._email,
           maxResults: GMAIL_API_LIST_MESSAGE_MAX_RESULTS,
-          q: afterDate
-            ? `after:${format(afterDate, GMAIL_API_DATE_FORMAT)}`
-            : undefined,
+          q,
         };
 
         if (nextPageToken) {
@@ -64,6 +66,8 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
 
       // skip further processing if there are no new emails
       if (!listMessages.length) return { success: true, data: undefined };
+
+      console.log(listMessages.length);
 
       // google insists that it's somehow possible to receive a valid list message response
       // with an undefined ID.........
@@ -102,12 +106,26 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
         };
       }
     }
-  }
+  };
+
+  private _getUserHasInboxCategories = async (): Promise<boolean> => {
+    const categoryMessages = await this._gmail.users.messages.list({
+      userId: this._email,
+      maxResults: 1,
+      q: "category: primary",
+    });
+
+    if (!categoryMessages.data.messages) {
+      throw new GmailError("Could not fetch inbox categories");
+    }
+
+    return categoryMessages.data.messages?.length > 0;
+  };
 
   private _getMessage = async (messageId: string): Promise<Message> => {
     try {
       const message = await this._gmail.users.messages.get({
-        userId: this._userId,
+        userId: this._email,
         id: messageId,
       });
 
@@ -126,7 +144,7 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
   };
 
   private _parseMessage = (message: RawMessage): Message => {
-    if (!message.id) throw new GmailError("id is undefined");
+    if (!message.id) throw new GmailError("Message ID is undefined");
 
     const headers = message.payload?.headers ?? [];
     const subject = headers.find((header) => header.name === "Subject")?.value;
@@ -147,6 +165,7 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
     return {
       id: message.id,
       date: message.internalDate,
+      snippet: message.snippet,
       subject,
       sender,
       body,

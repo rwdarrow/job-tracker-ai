@@ -1,12 +1,11 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import {
-  getServerSession,
   type DefaultSession,
   type NextAuthOptions,
+  getServerSession,
 } from "next-auth";
 import { type Adapter } from "next-auth/adapters";
 import GoogleProvider from "next-auth/providers/google";
-
 import { env } from "~/env";
 import { db } from "~/server/db";
 
@@ -20,15 +19,13 @@ declare module "next-auth" {
   interface Session extends DefaultSession {
     user: {
       id: string;
+      refreshToken: string;
+      providerAccountId: string;
+      provider: string;
       // ...other properties
       // role: UserRole;
     } & DefaultSession["user"];
   }
-
-  // interface User {
-  //   // ...other properties
-  //   // role: UserRole;
-  // }
 }
 
 /**
@@ -38,19 +35,40 @@ declare module "next-auth" {
  */
 export const authOptions: NextAuthOptions = {
   callbacks: {
-    session: ({ session, user }) => ({
-      ...session,
-      user: {
-        ...session.user,
-        id: user.id,
-      },
-    }),
+    session: async ({ session, user }) => {
+      const account = await db.account.findFirst({
+        where: {
+          userId: user.id,
+          provider: "google",
+        },
+      });
+
+      return {
+        ...session,
+        user: {
+          ...session.user,
+          id: user.id,
+          refreshToken: account?.refresh_token,
+          providerAcccountId: account?.providerAccountId,
+          provider: account?.provider,
+        },
+      };
+    },
   },
   adapter: PrismaAdapter(db) as Adapter,
   providers: [
     GoogleProvider({
       clientId: env.GOOGLE_CLIENT_ID,
       clientSecret: env.GOOGLE_CLIENT_SECRET,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+          scope:
+            "https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile",
+        },
+      },
     }),
     /**
      * ...add more providers here.
