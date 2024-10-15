@@ -8,7 +8,7 @@ export interface FetchMessagesParams {
 export interface EmailService<
   T extends FetchMessagesParams = FetchMessagesParams,
 > {
-  fetchMessages(params: T): Promise<Result<Message[] | undefined>>;
+  fetchMessages(params: T): Promise<Result<Message[] | undefined, Error>>;
 }
 
 export type EmailServiceConstructor = new () => EmailService;
