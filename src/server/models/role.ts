@@ -13,16 +13,15 @@ export enum Status {
   REJECTED = "REJECTED",
   OFFER_RECEIVED = "OFFER_RECEIVED",
   OFFER_DECLINED = "OFFER_DECLINED",
+  NOT_APPLICABLE = "NOT_APPLICABLE",
 }
 
 export interface Company {
-  id: string;
   name: string;
-  domain?: string;
+  domain: string;
 }
 
 export interface Contact {
-  id: string;
   email: string;
   name: string;
   title: string;
@@ -30,15 +29,9 @@ export interface Contact {
 }
 
 export interface Role {
-  id: string;
   title: string;
-  requisitionNumber?: string;
   status: Status;
-  lastStatus?: Status;
   statusConfidence: number;
   contacts: Contact[];
-  createdAt: Date;
-  updatedAt: Date;
-  createdById: string;
   company: Company;
 }
