@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { type gmail_v1, google } from "googleapis";
+import { simpleParser } from "mailparser";
 import pThrottle from "p-throttle";
 import { env } from "~/env";
 import {
@@ -67,8 +68,6 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
       // skip further processing if there are no new emails
       if (!listMessages.length) return { success: true, data: undefined };
 
-      console.log(listMessages.length);
-
       // google insists that it's somehow possible to receive a valid list message response
       // with an undefined ID.........
       const messagesWithIds = (listMessages ?? []).filter(
@@ -127,9 +126,10 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
       const message = await this._gmail.users.messages.get({
         userId: this._email,
         id: messageId,
+        format: "raw",
       });
 
-      return this._parseMessage(message.data);
+      return await this._parseMessage(message.data);
     } catch (error) {
       if (error instanceof Error) {
         console.error(`Error fetching message ${messageId}:`, error.message);
@@ -143,32 +143,37 @@ export default class GmailService implements EmailService<FetchMessagesParams> {
     }
   };
 
-  private _parseMessage = (message: RawMessage): Message => {
-    if (!message.id) throw new GmailError("Message ID is undefined");
+  private _parseMessage = async (rawMessage: RawMessage): Promise<Message> => {
+    if (!rawMessage.id) throw new GmailError("Message ID is undefined");
+    if (!rawMessage.raw) throw new GmailError("Message does not have raw");
 
-    const headers = message.payload?.headers ?? [];
-    const subject = headers.find((header) => header.name === "Subject")?.value;
-    const sender = headers.find((header) => header.name === "From")?.value;
-
-    let body = "";
-    if (message.payload?.parts) {
-      const part = message.payload.parts.find(
-        (part) => part.mimeType === "text/plain",
-      );
-      if (part?.body?.data) {
-        body = Buffer.from(part.body.data, "base64").toString("utf-8");
-      }
-    } else if (message.payload?.body?.data) {
-      body = Buffer.from(message.payload.body.data, "base64").toString("utf-8");
-    }
+    const decodedMessage = Buffer.from(rawMessage.raw, "base64").toString(
+      "utf-8",
+    );
+    const parsedMessage = await simpleParser(decodedMessage);
+    const body = parsedMessage.text
+      ? this._stripThreadContent(parsedMessage.text)
+      : parsedMessage.html
+        ? this._stripThreadContent(parsedMessage.html)
+        : "";
 
     return {
-      id: message.id,
-      date: message.internalDate,
-      snippet: message.snippet,
-      subject,
-      sender,
+      id: rawMessage.id,
+      date: rawMessage.internalDate,
+      snippet: rawMessage.snippet,
+      subject: parsedMessage.subject,
+      sender: {
+        name: parsedMessage.from?.value[0]?.name,
+        address: parsedMessage.from?.value[0]?.address,
+      },
       body,
     };
+  };
+
+  _stripThreadContent = (body: string): string => {
+    const parts = body.split(
+      /(From:\s.*Sent:\s.*To:\s.*Subject:\s.*)(\r?\n.*)*/g,
+    );
+    return parts.length ? parts[0]! : body;
   };
 }
